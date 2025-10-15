@@ -23,7 +23,7 @@ if (!PAGE_ACCESS_TOKEN || !VERIFY_TOKEN) {
 
 // ===== Webhook verification (GET) =====
 app.get("/webhook", (req, res) => {
-    console.log("webhook working");
+  console.log("webhook working");
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
@@ -34,7 +34,6 @@ app.get("/webhook", (req, res) => {
     return res.sendStatus(403);
   }
 });
-
 
 // ------------------ Helpers ------------------
 async function getIGUserId() {
@@ -98,8 +97,7 @@ app.get("/ig/conversations", async (req, res) => {
       {
         ...params,
         // keep fields minimal and safe
-        fields:
-          "id,updated_time,participants.limit(50){id,username},link",
+        fields: "id,updated_time,participants.limit(50){id,username},link",
       }
     );
 
@@ -111,7 +109,7 @@ app.get("/ig/conversations", async (req, res) => {
   } catch (err) {
     res.status(400).json({
       success: false,
-      error: stringifyGraphError(err),
+      error: err,
     });
   }
 });
@@ -138,13 +136,13 @@ function verifyMetaSignature(req) {
 
 // ===== Webhook receiver (POST) =====
 app.post("/webhook", async (req, res) => {
-    console.log(req,'assdas');
+  console.log(req, "assdas");
   if (!verifyMetaSignature(req)) {
     return res.sendStatus(403);
   }
 
   const body = req.body;
-  console.log("incoming webhook",body);
+  console.log("incoming webhook", body);
   // Body contains entry[...].messaging[] events, including IG DMs if configured
   if (body.object !== "instagram") {
     // For some setups, object can be 'page' but messaging_product is 'instagram'. We'll just proceed generically.
