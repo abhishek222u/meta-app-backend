@@ -23,6 +23,7 @@ if (!PAGE_ACCESS_TOKEN || !VERIFY_TOKEN) {
 
 // ===== Webhook verification (GET) =====
 app.get("/webhook", (req, res) => {
+    console.log("webhook working");
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
