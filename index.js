@@ -37,7 +37,6 @@ app.get("/webhook", (req, res) => {
 // ===== Use JSON parser AFTER webhook GET =====
 app.use(express.json({ verify: rawBodySaver }));
 
-
 // ===== Verify X-Hub-Signature (optional but recommended) =====
 function verifyMetaSignature(req) {
   try {
@@ -57,11 +56,13 @@ function verifyMetaSignature(req) {
 
 // ===== Webhook receiver (POST) =====
 app.post("/webhook", async (req, res) => {
+    console.log(req,'assdas');
   if (!verifyMetaSignature(req)) {
     return res.sendStatus(403);
   }
 
   const body = req.body;
+  console.log("incoming webhook",body);
   // Body contains entry[...].messaging[] events, including IG DMs if configured
   if (body.object !== "instagram") {
     // For some setups, object can be 'page' but messaging_product is 'instagram'. We'll just proceed generically.
