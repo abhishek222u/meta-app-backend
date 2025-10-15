@@ -5,7 +5,11 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
-app.use(express.json({ verify: rawBodySaver }));
+
+// ===== Verify middleware for raw body (for signature check) =====
+function rawBodySaver(req, res, buf) {
+  req.rawBody = buf;
+}
 
 // ===== Env Vars =====
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN; // From your FB App/Page connection
@@ -17,10 +21,22 @@ if (!PAGE_ACCESS_TOKEN || !VERIFY_TOKEN) {
   console.error("Missing env vars: PAGE_ACCESS_TOKEN and/or VERIFY_TOKEN.");
 }
 
-// ===== Verify middleware for raw body (for signature check) =====
-function rawBodySaver(req, res, buf) {
-  req.rawBody = buf;
-}
+// ===== Webhook verification (GET) =====
+app.get("/webhook", (req, res) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    return res.status(200).send(challenge);
+  } else {
+    return res.sendStatus(403);
+  }
+});
+
+// ===== Use JSON parser AFTER webhook GET =====
+app.use(express.json({ verify: rawBodySaver }));
+
 
 // ===== Verify X-Hub-Signature (optional but recommended) =====
 function verifyMetaSignature(req) {
@@ -38,19 +54,6 @@ function verifyMetaSignature(req) {
     return false;
   }
 }
-
-// ===== Webhook verification (GET) =====
-app.get("/webhook", (req, res) => {
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
-
-  if (mode === "subscribe" && token === VERIFY_TOKEN) {
-    return res.status(200).send(challenge);
-  } else {
-    return res.sendStatus(403);
-  }
-});
 
 // ===== Webhook receiver (POST) =====
 app.post("/webhook", async (req, res) => {
