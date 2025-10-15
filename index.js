@@ -35,6 +35,87 @@ app.get("/webhook", (req, res) => {
   }
 });
 
+
+// ------------------ Helpers ------------------
+async function getIGUserId() {
+  // Fetch Instagram Business Account ID linked to the Page token
+  // 1) Get page id from token (me)
+  // 2) From page: fields=connected_instagram_account OR instagram_business_account
+  // Different setups expose either one; we’ll try both.
+
+  // Get Page ID
+  const me = await axios.get(
+    `https://graph.facebook.com/v21.0/me?fields=id&access_token=${PAGE_ACCESS_TOKEN}`
+  );
+  const PAGE_ID = me.data.id;
+
+  // Try to resolve IG business user via page fields
+  const pageResp = await axios.get(
+    `https://graph.facebook.com/v21.0/${PAGE_ID}?fields=connected_instagram_account,instagram_business_account&access_token=${PAGE_ACCESS_TOKEN}`
+  );
+
+  const igUserId =
+    pageResp.data?.connected_instagram_account?.id ||
+    pageResp.data?.instagram_business_account?.id;
+
+  if (!igUserId) {
+    throw new Error(
+      "Could not resolve IG Business User ID. Ensure IG account is connected to the FB Page and permissions are granted."
+    );
+  }
+  return igUserId;
+}
+
+// Safe axios GET with bearer token and passthrough of query params
+async function graphGet(url, params = {}) {
+  const { data } = await axios.get(url, {
+    params: { ...params, access_token: PAGE_ACCESS_TOKEN },
+  });
+  return data;
+}
+
+// ------------------ Routes ------------------
+
+/**
+ * GET /ig/conversations
+ * Query params:
+ *  - limit (optional, default 25)
+ *  - before / after (optional; Graph pagination cursors)
+ */
+app.get("/ig/conversations", async (req, res) => {
+  try {
+    const igUserId = await getIGUserId();
+    const { limit = 25, before, after } = req.query;
+
+    const params = { limit };
+    if (before) params.before = before;
+    if (after) params.after = after;
+
+    // List IG conversations for the business user
+    // Fields you can request: id, participants, updated_time, folder, etc.
+    const data = await graphGet(
+      `https://graph.facebook.com/v21.0/${igUserId}/conversations`,
+      {
+        ...params,
+        // keep fields minimal and safe
+        fields:
+          "id,updated_time,participants.limit(50){id,username},link",
+      }
+    );
+
+    res.json({
+      success: true,
+      data: data.data || [],
+      paging: data.paging || null,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      error: stringifyGraphError(err),
+    });
+  }
+});
+
 // ===== Use JSON parser AFTER webhook GET =====
 app.use(express.json({ verify: rawBodySaver }));
 
